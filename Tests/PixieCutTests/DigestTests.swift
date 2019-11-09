@@ -2,6 +2,7 @@ import XCTest
 import PixieCut
 
 
+private var comps = URLComponents()
 
 class DigestTests: XCTestCase {
   let codeDigestPairs = [
@@ -14,7 +15,7 @@ class DigestTests: XCTestCase {
   ]
 
   
-  func testDigest() {
+  func testDigestPairs() {
     XCTAssert(!codeDigestPairs.isEmpty)
     codeDigestPairs.forEach { code, digest in
       XCTAssertEqual(DigestHelper.base64SHA256(from: code), digest)
