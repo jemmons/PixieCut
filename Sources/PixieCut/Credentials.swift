@@ -6,7 +6,7 @@ public struct Credentials: Decodable {
   public let accessToken: String
   public let refreshToken: String?
   public let tokenType: String
-  public let expiresInSeconds: Int?
+  public let expiresIn: TimeInterval?
   public let scope: [String]
   public let created = Date()
   
@@ -15,7 +15,7 @@ public struct Credentials: Decodable {
     case accessToken = "access_token"
     case refreshToken = "refresh_token"
     case tokenType = "token_type"
-    case expiresInSeconds = "expires_in"
+    case expiresIn = "expires_in"
     case scope
   }
   
@@ -47,26 +47,35 @@ public struct Credentials: Decodable {
     self.init(accessToken: newAccessToken,
               tokenType: newTokenType,
               refreshToken: comps.queryValue(for: CodingKeys.refreshToken.rawValue),
-              expiresInSeconds: comps.queryValue(for: CodingKeys.expiresInSeconds.rawValue),
+              expiresIn: comps.queryValue(for: CodingKeys.expiresIn.rawValue),
               scope: comps.queryValue(for: CodingKeys.scope.rawValue))
   }
   
   
   public init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
+    
+    let expiresIn: String?
+    // Some JSON I’ve seen treats `expires_in` as an Int, and some treats it as a String.
+    do {
+      expiresIn = try container.decodeIfPresent(String.self, forKey: .expiresIn)
+    } catch {
+      expiresIn = try container.decodeIfPresent(Double.self, forKey: .expiresIn).flatMap { String($0) }
+    }
+    
     try self.init(accessToken: container.decode(String.self, forKey: .accessToken),
                   tokenType: container.decode(String.self, forKey: .tokenType),
                   refreshToken: container.decodeIfPresent(String.self, forKey: .refreshToken),
-                  expiresInSeconds: container.decodeIfPresent(String.self, forKey: .expiresInSeconds),
+                  expiresIn: expiresIn,
                   scope: container.decodeIfPresent(String.self, forKey: .scope))
   }
 
 
-  private init(accessToken: String, tokenType: String, refreshToken: String?, expiresInSeconds: String?, scope: String?) {
+  private init(accessToken: String, tokenType: String, refreshToken: String?, expiresIn: String?, scope: String?) {
     self.accessToken = accessToken
     self.tokenType = tokenType
     self.refreshToken = refreshToken
-    self.expiresInSeconds = expiresInSeconds.flatMap(Int.init)
+    self.expiresIn = expiresIn.flatMap(Double.init).flatMap(TimeInterval.init)
     self.scope = scope?.split(separator: " ").map(String.init) ?? []
   }
 }

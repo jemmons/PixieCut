@@ -19,8 +19,34 @@ class CredentialsJSONTests: XCTestCase {
     XCTAssertEqual(credentials.accessToken, "access123")
     XCTAssertEqual(credentials.refreshToken, "refresh123")
     XCTAssertEqual(credentials.tokenType, "bearer")
-    XCTAssertEqual(credentials.expiresInSeconds, 3600)
+    XCTAssertEqual(credentials.expiresIn, 3600)
     XCTAssertEqual(credentials.scope, ["read", "write"])
+  }
+  
+  
+  func testExpiresIsSometimesAnInt() {
+    let json = Data("""
+    {
+      "access_token": "access123",
+      "token_type": "bearer",
+      "expires_in": 3600
+    }
+    """.utf8)
+    let credentials = try! JSONDecoder().decode(Credentials.self, from: json)
+    XCTAssertEqual(3600, credentials.expiresIn)
+  }
+  
+  
+  func testIGuessExpiresCouldBeAFloatToo() {
+    let json = Data("""
+    {
+      "access_token": "access123",
+      "token_type": "bearer",
+      "expires_in": 3600.5
+    }
+    """.utf8)
+    let credentials = try! JSONDecoder().decode(Credentials.self, from: json)
+    XCTAssertEqual(3600.5, credentials.expiresIn)
   }
   
   
@@ -36,7 +62,7 @@ class CredentialsJSONTests: XCTestCase {
     XCTAssertEqual(credentials.accessToken, "access123")
     XCTAssertEqual(credentials.tokenType, "bearer")
     XCTAssertNil(credentials.refreshToken)
-    XCTAssertNil(credentials.expiresInSeconds)
+    XCTAssertNil(credentials.expiresIn)
     XCTAssert(credentials.scope.isEmpty)
   }
   

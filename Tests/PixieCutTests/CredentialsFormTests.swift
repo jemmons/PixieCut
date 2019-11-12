@@ -11,7 +11,7 @@ class CredentialsFormTests: XCTestCase {
     XCTAssertEqual(credentials.accessToken, "access123")
     XCTAssertEqual(credentials.refreshToken, "refresh123")
     XCTAssertEqual(credentials.tokenType, "bearer")
-    XCTAssertEqual(credentials.expiresInSeconds, 3600)
+    XCTAssertEqual(credentials.expiresIn, 3600)
     XCTAssertEqual(credentials.scope, ["read", "write"])
   }
   
@@ -23,7 +23,7 @@ class CredentialsFormTests: XCTestCase {
     XCTAssertEqual(credentials.accessToken, "access123")
     XCTAssertEqual(credentials.tokenType, "bearer")
     XCTAssertNil(credentials.refreshToken)
-    XCTAssertNil(credentials.expiresInSeconds)
+    XCTAssertNil(credentials.expiresIn)
     XCTAssert(credentials.scope.isEmpty)
   }
   
