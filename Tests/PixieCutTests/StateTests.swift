@@ -4,7 +4,7 @@ import PixieCut
 
 
 class StateTests: XCTestCase {
-  func testGlobalStateProperties() {
+  func testRandmoStateProperties() {
     var comps = URLComponents()
     
     let states: [String] = globalOAuths.map { oauthRequest in

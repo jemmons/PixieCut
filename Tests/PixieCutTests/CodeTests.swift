@@ -34,7 +34,7 @@ class CodeTests: XCTestCase {
       let challenge = (comps.queryItems?.first { $0.name == "code_challenge" }?.value)!
       let state = (comps.queryItems?.first { $0.name == "state" }?.value)!
       
-      let tokenReq = try! oauth.makeTokenRequest(callback: URL(string: "http://example.com?code=123&state=" + state)!)
+      let tokenReq = try! oauth.makeTokenRequest(callback: URL(string: "https://example.com?code=123&state=" + state)!)
       comps.query = String(data: tokenReq.httpBody!, encoding: .utf8)
       let verifier = (comps.queryItems?.first {$0.name == "code_verifier"}?.value)!
       XCTAssertEqual(challenge, DigestHelper.base64SHA256(from: verifier))

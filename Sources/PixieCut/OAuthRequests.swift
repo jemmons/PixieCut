@@ -9,30 +9,11 @@ public struct OAuthRequests {
   
   private let tokenRequest: URLRequest
   private let state: String
+  private let redirectURL: URL
 
   
-  public enum Error: LocalizedError {
-    case noCode, noState, stateMismatch
-    
-    
-    public var errorDescription: String? {
-      switch self {
-      case .noCode:
-        return "No authorization code was returned by the IDP."
-      case .noState:
-        return "No state was returned by the IDP."
-      case .stateMismatch:
-        return "The state returned by the IDP does not match that of the client."
-      }
-    }
-    
-    public var failureReason: String? {
-      return "OAuth Error"
-    }
-  }
-  
-  
-  public init(clientID: String, authURL: URL, tokenURL: URL, redirectURL: URL, scope: String) {
+  public init(clientID: String, authURL: URL, tokenURL: URL, redirectURL: URL, scope: [String] = []) {
+    self.redirectURL = redirectURL
     state = Helper.makeState()
     let codeVerifier = Helper.makeCodeVerifier()
     authRequest = Helper.makeAuthRequest(authURL: authURL, clientID: clientID, redirectURL: redirectURL, scope: scope, state: state, codeVerifier: codeVerifier)
@@ -41,6 +22,10 @@ public struct OAuthRequests {
   
   
   public func makeTokenRequest(callback: URL) throws -> URLRequest {
+    guard callback.absoluteString.hasPrefix(redirectURL.absoluteString) else {
+      throw Error.callbackMismatch
+    }
+    
     let comps = URLComponents(url: callback, resolvingAgainstBaseURL: false)
     guard let code = comps?.queryValue(for: "code") else {
       throw Error.noCode
@@ -58,21 +43,52 @@ public struct OAuthRequests {
 
 
 
+// MARK: - ERRORS
+public extension OAuthRequests {
+  enum Error: LocalizedError {
+    case callbackMismatch, noCode, noState, stateMismatch
+    
+    
+    public var errorDescription: String? {
+      switch self {
+      case .callbackMismatch:
+        return "The callback URL doesn’t match the one given on initialization."
+      case .noCode:
+        return "No authorization code was returned by the IDP."
+      case .noState:
+        return "No state was returned by the IDP."
+      case .stateMismatch:
+        return "The state returned by the IDP does not match that of the client."
+      }
+    }
+    
+    public var failureReason: String? {
+      return "OAuth Error"
+    }
+  }
+}
+
+// MARK: - HELPER
 private enum Helper {
   private static let stateCharacters = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
   private static let codeVerifierCharacters = stateCharacters + "-._~"
   
   
-  private static func makeAuthQueryItems(clientID: String, redirectURL: URL, scope: String, state: String, codeVerifier: String) -> [URLQueryItem] {
-    return [
+  private static func makeAuthQueryItems(clientID: String, redirectURL: URL, scope: [String], state: String, codeVerifier: String) -> [URLQueryItem] {
+    var items = [
       URLQueryItem(name: "client_id", value: clientID),
       URLQueryItem(name: "redirect_uri", value: redirectURL.absoluteString),
-      URLQueryItem(name: "scope", value: scope),
       URLQueryItem(name: "state", value: state),
       URLQueryItem(name: "code_challenge", value: DigestHelper.base64SHA256(from: codeVerifier)),
       URLQueryItem(name: "code_challenge_method", value: "S256"),
       URLQueryItem(name: "response_type", value: "code"),
     ]
+    
+    if !scope.isEmpty {
+      items.append(URLQueryItem(name: "scope", value: scope.joined(separator: " ")))
+    }
+    
+    return items
   }
   
   
@@ -108,7 +124,7 @@ private enum Helper {
   }
 
   
-  static func makeAuthRequest(authURL: URL, clientID: String, redirectURL: URL, scope: String, state: String, codeVerifier: String) -> URLRequest {
+  static func makeAuthRequest(authURL: URL, clientID: String, redirectURL: URL, scope: [String], state: String, codeVerifier: String) -> URLRequest {
     var comps = URLComponents(url: authURL, resolvingAgainstBaseURL: false)
     comps?.queryItems = makeAuthQueryItems(clientID: clientID, redirectURL: redirectURL, scope: scope, state: state, codeVerifier: codeVerifier)
     return URLRequest(url: comps?.url ?? authURL)
@@ -118,7 +134,10 @@ private enum Helper {
   static func makeTokenRequest(tokenURL: URL, clientID: String, redirectURL: URL, codeVerifier: String) -> URLRequest {
     var req = URLRequest(url: tokenURL)
     req.httpMethod = "POST"
-    req.allHTTPHeaderFields = (req.allHTTPHeaderFields ?? [:]).merging(["content-type": "application/x-www-form-urlencoded"]) { $1 }
+    req.allHTTPHeaderFields = [
+      "content-type": "application/x-www-form-urlencoded",
+      "accept": "application/x-www-form-urlencoded,application/json",
+    ]
     req.httpBody = URLComponents.queryData(from: makeTokenQueryItems(clientID: clientID, redirectURL: redirectURL, codeVerifier: codeVerifier))
     return req
   }
@@ -136,28 +155,7 @@ private enum Helper {
 
 
 
-private extension URLComponents {
-  func queryValue(for name: String) -> String? {
-    return queryItems?.first { $0.name == name }?.value
-  }
-  
-  
-  static func queryItems(from query: String?) -> [URLQueryItem]? {
-    var comps = Self.init()
-    comps.query = query
-    return comps.queryItems
-  }
-  
-
-  static func queryData(from queryItems: [URLQueryItem]?) -> Data? {
-    var comps = Self.init()
-    comps.queryItems = queryItems
-    return comps.query?.data(using: .utf8)
-  }
-}
-
-
-
+// MARK: - CONVENIENCE EXTENSIONS
 private extension String {
   init?(utf8Data: Data) {
     self.init(data: utf8Data, encoding: .utf8)

@@ -10,7 +10,7 @@ let globalOAuths: [OAuthRequests] = {
       authURL: URL.example,
       tokenURL: URL.example,
       redirectURL: URL.example,
-      scope: "bar")
+      scope: ["bar"])
   }
 }()
 
