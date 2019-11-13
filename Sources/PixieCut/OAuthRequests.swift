@@ -8,6 +8,7 @@ public struct OAuthRequests {
 
   
   private let tokenRequest: URLRequest
+  private let refreshRequest: URLRequest
   private let state: String
   private let redirectURL: URL
 
@@ -17,7 +18,8 @@ public struct OAuthRequests {
     state = Helper.makeState()
     let codeVerifier = Helper.makeCodeVerifier()
     authRequest = Helper.makeAuthRequest(authURL: authURL, clientID: clientID, redirectURL: redirectURL, scope: scope, state: state, codeVerifier: codeVerifier)
-    tokenRequest = Helper.makeTokenRequest(tokenURL: tokenURL, clientID: clientID, redirectURL: redirectURL, codeVerifier: codeVerifier);
+    tokenRequest = Helper.makeTokenRequest(tokenURL: tokenURL, clientID: clientID, redirectURL: redirectURL, codeVerifier: codeVerifier)
+    refreshRequest = Helper.makeRefreshRequest(tokenURL: tokenURL, clientID: clientID)
   }
   
   
@@ -38,6 +40,11 @@ public struct OAuthRequests {
     }
     
     return Helper.update(tokenRequest: tokenRequest, code: code)
+  }
+  
+  
+  public func makeRefreshRequest(refreshToken: String) -> URLRequest {
+    return Helper.update(refreshRequest: refreshRequest, refreshToken: refreshToken)
   }
 }
 
@@ -102,6 +109,27 @@ private enum Helper {
   }
   
   
+  private static func makeRefreshQueryItems(clientID: String) -> [URLQueryItem] {
+    return [
+      URLQueryItem(name: "client_id", value: clientID),
+      URLQueryItem(name: "grant_type", value: "refresh_token"),
+    ]
+
+  }
+
+  
+  private static func makePOSTRequest(url: URL, query: [URLQueryItem]) -> URLRequest {
+    var req = URLRequest(url: url)
+    req.httpMethod = "POST"
+    req.allHTTPHeaderFields = [
+      "content-type": "application/x-www-form-urlencoded",
+      "accept": "application/x-www-form-urlencoded,application/json",
+    ]
+    req.httpBody = URLComponents.queryData(from: query)
+    return req
+  }
+
+  
   static func makeCodeVerifier() -> String {
     var buf: String = ""
     (0..<128).forEach { _ in
@@ -132,42 +160,42 @@ private enum Helper {
   
   
   static func makeTokenRequest(tokenURL: URL, clientID: String, redirectURL: URL, codeVerifier: String) -> URLRequest {
-    var req = URLRequest(url: tokenURL)
-    req.httpMethod = "POST"
-    req.allHTTPHeaderFields = [
-      "content-type": "application/x-www-form-urlencoded",
-      "accept": "application/x-www-form-urlencoded,application/json",
-    ]
-    req.httpBody = URLComponents.queryData(from: makeTokenQueryItems(clientID: clientID, redirectURL: redirectURL, codeVerifier: codeVerifier))
-    return req
+    return makePOSTRequest(url: tokenURL, query: makeTokenQueryItems(clientID: clientID, redirectURL: redirectURL, codeVerifier: codeVerifier))
   }
   
   
+  static func makeRefreshRequest(tokenURL: URL, clientID: String) -> URLRequest {
+    return makePOSTRequest(url: tokenURL, query: makeRefreshQueryItems(clientID: clientID))
+  }
+
+  
   static func update(tokenRequest: URLRequest, code: String) -> URLRequest {
-    let existingBody = tokenRequest.httpBody.flatMap(String.init(utf8Data:))
-    let newQueryItems = (URLComponents.queryItems(from: existingBody) ?? [])
-      .filter { $0.name != "code" }
-      + [URLQueryItem(name: "code", value: code)]
-    
-    return tokenRequest.replacing(body: URLComponents.queryData(from: newQueryItems))
+    return tokenRequest.replaceing(queryItem: URLQueryItem(name: "code", value: code))
+  }
+  
+  
+  static func update(refreshRequest: URLRequest, refreshToken: String) -> URLRequest {
+    return refreshRequest.replaceing(queryItem: URLQueryItem(name: "refresh_token", value: refreshToken))
   }
 }
 
 
 
 // MARK: - CONVENIENCE EXTENSIONS
-private extension String {
-  init?(utf8Data: Data) {
-    self.init(data: utf8Data, encoding: .utf8)
-  }
-}
-
-
-
 private extension URLRequest {
-  func replacing(body: Data?) -> URLRequest {
+  private func replacing(body: Data?) -> URLRequest {
     var newRequest = self
     newRequest.httpBody = body
     return newRequest
+  }
+  
+  
+  func replaceing(queryItem: URLQueryItem) -> URLRequest {
+    let existingBody = httpBody.flatMap { String.init(data: $0, encoding: .utf8) }
+    let newQueryItems = (URLComponents.queryItems(from: existingBody) ?? [])
+      .filter { $0.name != queryItem.name }
+      + [queryItem]
+    
+    return replacing(body: URLComponents.queryData(from: newQueryItems))
   }
 }
