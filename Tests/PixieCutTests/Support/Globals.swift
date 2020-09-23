@@ -3,9 +3,9 @@ import PixieCut
 
 
 let globalOAuthCount = 2000
-let globalOAuths: [OAuthRequests] = {
+let globalOAuths: [OAuthSession] = {
   (0..<globalOAuthCount).map { _ in
-    OAuthRequests(
+    OAuthSession(
       clientID: "foo",
       authURL: URL.example,
       tokenURL: URL.example,
@@ -13,6 +13,7 @@ let globalOAuths: [OAuthRequests] = {
       scope: ["bar"])
   }
 }()
+
 
 extension URL {
   static let example: URL = URL(string: "https://example.com")!
