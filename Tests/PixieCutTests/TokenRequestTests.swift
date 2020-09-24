@@ -4,6 +4,8 @@ import PixieCut
 
 
 class TokenRequestTests: XCTestCase {
+  
+  
   func testMismatchedStateError() {
     let stateWasMismatched = expectation(description: "waiting for error")
     
@@ -12,12 +14,16 @@ class TokenRequestTests: XCTestCase {
     
     do {
       _ = try oauth.makeTokenRequest(callback: badResponse)
-    } catch OAuthSession.Error.stateMismatch {
-      stateWasMismatched.fulfill()
     } catch {
-      XCTFail()
+      switch error {
+      case OAuthSession.Error.stateMismatch:
+        XCTAssertEqual(error.localizedDescription, "The state returned by the IDP does not match that of the client.")
+        XCTAssertEqual((error as NSError).localizedFailureReason, "OAuth Error")
+        stateWasMismatched.fulfill()
+      default:
+        XCTFail()
+      }
     }
-      
     wait(for: [stateWasMismatched], timeout: 0)
   }
   
@@ -30,10 +36,15 @@ class TokenRequestTests: XCTestCase {
     
     do {
       _ = try oauth.makeTokenRequest(callback: badResponse)
-    } catch OAuthSession.Error.noState {
-      stateWasMissing.fulfill()
     } catch {
-      XCTFail()
+      switch error {
+      case OAuthSession.Error.noState:
+        XCTAssertEqual("No state was returned by the IDP.", error.localizedDescription)
+        XCTAssertEqual((error as NSError).localizedFailureReason, "OAuth Error")
+        stateWasMissing.fulfill()
+      default:
+        XCTFail()
+      }
     }
       
     wait(for: [stateWasMissing], timeout: 0)
@@ -50,10 +61,15 @@ class TokenRequestTests: XCTestCase {
     
     do {
       _ = try oauth.makeTokenRequest(callback: responseSansCode)
-    } catch OAuthSession.Error.noCode {
-      codeWasMissing.fulfill()
     } catch {
-      XCTFail()
+      switch error {
+      case OAuthSession.Error.noCode:
+        XCTAssertEqual(error.localizedDescription, "No authorization code was returned by the IDP.")
+        XCTAssertEqual((error as NSError).localizedFailureReason, "OAuth Error")
+        codeWasMissing.fulfill()
+      default:
+        XCTFail()
+      }
     }
       
     wait(for: [codeWasMissing], timeout: 0)
@@ -70,13 +86,17 @@ class TokenRequestTests: XCTestCase {
     
     do {
       _ = try oauth.makeTokenRequest(callback: differentHostResponse)
-    } catch OAuthSession.Error.callbackMismatch {
-      urlWasDifferent.fulfill()
     } catch {
-      XCTFail()
+      switch error {
+      case OAuthSession.Error.callbackMismatch:
+        XCTAssertEqual(error.localizedDescription, "The callback URL doesn’t match the one given on initialization.")
+        XCTAssertEqual((error as NSError).localizedFailureReason, "OAuth Error")
+        urlWasDifferent.fulfill()
+      default:
+        XCTFail()
+      }
     }
       
     wait(for: [urlWasDifferent], timeout: 0)
-
   }
 }

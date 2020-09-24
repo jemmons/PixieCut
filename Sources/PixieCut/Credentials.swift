@@ -86,6 +86,19 @@ public extension Credentials {
   enum  Error: LocalizedError {
     case missingRequiredQueryParameter(String)
     case unexpectedMIMEType(String)
+    
+    public var errorDescription: String? {
+      switch self {
+      case .missingRequiredQueryParameter(let param):
+        return "The required parameter “\(param)” was not found."
+      case .unexpectedMIMEType(let type):
+        return "Expected data to be form- or json-encoded. Found “\(type)” instead."
+      }
+    }
+    
+    public var failureReason: String? {
+      return "Credential Error"
+    }
   }
 }
 

@@ -53,10 +53,15 @@ class CredentialConvenienceTests: XCTestCase {
     
     do {
       _ = try Credentials(mimeType: "chip/dale", data: json)
-    } catch Credentials.Error.unexpectedMIMEType("chip/dale") {
-      catchUnexpectedMIME.fulfill()
     } catch {
-      XCTFail()
+      switch error {
+      case Credentials.Error.unexpectedMIMEType("chip/dale"):
+        XCTAssert(error.localizedDescription.contains("chip/dale"))
+        XCTAssertEqual((error as NSError).localizedFailureReason, "Credential Error")
+        catchUnexpectedMIME.fulfill()
+      default:
+        XCTFail()
+      }
     }
     
     wait(for: [catchUnexpectedMIME], timeout: 0)
@@ -85,10 +90,15 @@ class CredentialConvenienceTests: XCTestCase {
     
     do {
       _ = try Credentials(mimeType: "application/x-www-form-urlencoded", data: query)
-    } catch Credentials.Error.missingRequiredQueryParameter {
-      catchBadQuery.fulfill()
     } catch {
-      XCTFail()
+      switch error {
+      case Credentials.Error.missingRequiredQueryParameter:
+        XCTAssert(error.localizedDescription.hasPrefix("The required parameter"))
+        XCTAssertEqual((error as NSError).localizedFailureReason, "Credential Error")
+        catchBadQuery.fulfill()
+      default:
+        XCTFail()
+      }
     }
     
     wait(for: [catchBadQuery], timeout: 0)

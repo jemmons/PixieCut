@@ -7,9 +7,9 @@ let globalOAuths: [OAuthSession] = {
   (0..<globalOAuthCount).map { _ in
     OAuthSession(
       clientID: "foo",
-      authURL: URL.example,
-      tokenURL: URL.example,
-      redirectURL: URL.example,
+      authURL: .example,
+      tokenURL: .example,
+      redirectURL: .example,
       scope: ["bar"])
   }
 }()
