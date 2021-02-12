@@ -5,8 +5,14 @@ import PixieCut
 
 class CredentialsFormTests: XCTestCase {
   func testFull() {
-    let query = Data("access_token=access123&refresh_token=refresh123&token_type=bearer&expires_in=3600&scope=read write".utf8)
-    let credentials = try! Credentials(queryData: query)
+    let query = OAuthQuery(queryItems: [
+      URLQueryItem(name: "access_token", value: "access123"),
+      URLQueryItem(name: "refresh_token", value: "refresh123"),
+      URLQueryItem(name: "token_type", value: "bearer"),
+      URLQueryItem(name: "expires_in", value: "3600"),
+      URLQueryItem(name: "scope", value: "read write"),
+    ])
+    let credentials = try! Credentials(query: query)
     XCTAssertEqual(Date().timeIntervalSince1970, credentials.created.timeIntervalSince1970, accuracy: 1.0)
     XCTAssertEqual(credentials.accessToken, "access123")
     XCTAssertEqual(credentials.refreshToken, "refresh123")
@@ -17,8 +23,11 @@ class CredentialsFormTests: XCTestCase {
   
   
   func testMinimum() {
-    let query = Data("access_token=access123&token_type=bearer".utf8)
-    let credentials = try! Credentials(queryData: query)
+    let query = OAuthQuery(queryItems: [
+      URLQueryItem(name: "access_token", value: "access123"),
+      URLQueryItem(name: "token_type", value: "bearer"),
+    ])
+    let credentials = try! Credentials(query: query)
     XCTAssertEqual(Date().timeIntervalSince1970, credentials.created.timeIntervalSince1970, accuracy: 1.0)
     XCTAssertEqual(credentials.accessToken, "access123")
     XCTAssertEqual(credentials.tokenType, "bearer")
@@ -31,9 +40,11 @@ class CredentialsFormTests: XCTestCase {
   func testMissingRequiredAccessToken() {
     let accessTokenNotFound = expectation(description: "waiting for error")
     
-    let query = Data("token_type=bearer".utf8)
+    let query = OAuthQuery(queryItems: [
+      URLQueryItem(name: "token_type", value: "bearer"),
+    ])
     do {
-      _ = try Credentials(queryData: query)
+      _ = try Credentials(query: query)
     } catch Credentials.Error.missingRequiredQueryParameter("access_token") {
       accessTokenNotFound.fulfill()
     } catch {
@@ -46,10 +57,13 @@ class CredentialsFormTests: XCTestCase {
   
   func testMissingRequiredTokenType() {
     let tokenTypeNotFound = expectation(description: "Waiting for error")
-    
-    let query = Data("access_token=access123".utf8)
+
+    let query = OAuthQuery(queryItems: [
+      URLQueryItem(name: "access_token", value: "access123"),
+    ])
+
     do {
-      _ = try Credentials(queryData: query)
+      _ = try Credentials(query: query)
     } catch Credentials.Error.missingRequiredQueryParameter("token_type"){
       tokenTypeNotFound.fulfill()
     } catch {
@@ -63,9 +77,9 @@ class CredentialsFormTests: XCTestCase {
   func testInvalidData() {
     let errorThrown = expectation(description: "Waiting for error")
     
-    let invalidQuery = Data(capacity: 0)
+    let invalidQuery = OAuthQuery(queryItems: [])
     do {
-      _ = try Credentials(queryData: invalidQuery)
+      _ = try Credentials(query: invalidQuery)
     } catch Credentials.Error.missingRequiredQueryParameter {
       errorThrown.fulfill()
     } catch {

@@ -28,6 +28,6 @@ class ScopeTests: XCTestCase {
   func testMultipleScopes() {
     let oauth = OAuthSession(clientID: "client", authURL: URL.example, tokenURL: URL.example, redirectURL: URL.example, scope: ["One", "tWo", "thrEE"])
     let query = oauth.authRequest.url!.query!
-    XCTAssert(query.contains("scope=One%20tWo%20thrEE"))
+    XCTAssert(query.contains("scope=One+tWo+thrEE"))
   }
 }

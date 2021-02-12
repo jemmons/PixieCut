@@ -8,7 +8,7 @@ public struct Credentials: Decodable {
   public let tokenType: String
   public let expiresIn: TimeInterval?
   public let scope: [String]
-  public let created = Date()
+  public let created: Date
   
   
   enum CodingKeys: String, CodingKey {
@@ -19,36 +19,24 @@ public struct Credentials: Decodable {
     case scope
   }
   
-  
-  public init(mimeType: String, data: Data) throws {
-    switch mimeType {
-    case String.Contains("application/x-www-form-urlencoded"):
-      try self.init(queryData: data)
-      
-    case String.Contains("application/json"):
-      try self = JSONDecoder().decode(Credentials.self, from: data)
-      
-    default:
-      throw Error.unexpectedMIMEType(mimeType)
-    }
+
+  public init(json: Data) throws {
+    try self = JSONDecoder().decode(Credentials.self, from: json)
   }
   
   
-  public init(queryData: Data) throws {
-    var comps = URLComponents()
-    comps.query = String(data: queryData, encoding: .utf8)
-    
-    guard let newAccessToken = comps.queryValue(for: CodingKeys.accessToken.rawValue) else {
+  public init(query: OAuthQuery) throws {
+    guard let newAccessToken = query.value(for: CodingKeys.accessToken.rawValue) else {
       throw Error.missingRequiredQueryParameter(CodingKeys.accessToken.rawValue)
     }
-    guard let newTokenType = comps.queryValue(for: CodingKeys.tokenType.rawValue) else {
+    guard let newTokenType = query.value(for: CodingKeys.tokenType.rawValue) else {
       throw Error.missingRequiredQueryParameter(CodingKeys.tokenType.rawValue)
     }
     self.init(accessToken: newAccessToken,
               tokenType: newTokenType,
-              refreshToken: comps.queryValue(for: CodingKeys.refreshToken.rawValue),
-              expiresIn: comps.queryValue(for: CodingKeys.expiresIn.rawValue),
-              scope: comps.queryValue(for: CodingKeys.scope.rawValue))
+              refreshToken: query.value(for: CodingKeys.refreshToken.rawValue),
+              expiresIn: query.value(for: CodingKeys.expiresIn.rawValue),
+              scope: query.value(for: CodingKeys.scope.rawValue))
   }
   
   
@@ -72,6 +60,7 @@ public struct Credentials: Decodable {
 
 
   private init(accessToken: String, tokenType: String, refreshToken: String?, expiresIn: String?, scope: String?) {
+    created = Date()
     self.accessToken = accessToken
     self.tokenType = tokenType
     self.refreshToken = refreshToken
@@ -81,18 +70,16 @@ public struct Credentials: Decodable {
 }
 
 
+
 // MARK: - ERRORS
 public extension Credentials {
   enum  Error: LocalizedError {
     case missingRequiredQueryParameter(String)
-    case unexpectedMIMEType(String)
     
     public var errorDescription: String? {
       switch self {
       case .missingRequiredQueryParameter(let param):
         return "The required parameter “\(param)” was not found."
-      case .unexpectedMIMEType(let type):
-        return "Expected data to be form- or json-encoded. Found “\(type)” instead."
       }
     }
     
@@ -101,20 +88,3 @@ public extension Credentials {
     }
   }
 }
-
-
-
-// MARK: - CONVENIENCE EXTENSIONS
-extension String {
-  static func ~= (pattern: Contains, value: String) -> Bool {
-    return value.contains(pattern.value)
-  }
-  
-  struct Contains {
-    let value: String
-    init(_ value: String) {
-      self.value = value
-    }
-  }
-}
-

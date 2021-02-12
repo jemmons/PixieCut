@@ -72,9 +72,7 @@ public class OAuthSession {
       authQueryItems.append(URLQueryItem(name: "scope", value: scope.joined(separator: " ")))
     }
     
-    var authComps = URLComponents(url: authURL, resolvingAgainstBaseURL: false)
-    authComps?.queryItems = authQueryItems
-    authRequest = URLRequest(url: authComps?.url ?? authURL)
+    authRequest = URLRequest(url: OAuthQuery(queryItems: authQueryItems).makeURL(with: authURL) ?? authURL)
   }
 }
 
@@ -111,15 +109,15 @@ public extension OAuthSession {
   func makeTokenRequest(callback: URL) throws -> URLRequest {
     let authorizationCode = try Helper.validateCallback(callback, redirect: redirectURL, state: state)
         
-    let queryItems = [
+    let query = OAuthQuery(queryItems: [
       URLQueryItem(name: "code", value: authorizationCode),
       URLQueryItem(name: "client_id", value: clientID),
       URLQueryItem(name: "redirect_uri", value: redirectURL.absoluteString),
       URLQueryItem(name: "code_verifier", value: codeVerifier),
       URLQueryItem(name: "grant_type", value: "authorization_code"),
-    ]
+    ])
     
-    return Helper.makePOSTRequest(url: tokenURL, query: queryItems)
+    return Helper.makePOSTRequest(url: tokenURL, query: query)
   }
   
   
@@ -135,13 +133,13 @@ public extension OAuthSession {
    - returns: A `URLRequest` suitable for exchanging `refreshToken` with the Authorization Server for a new Access Token.
    */
   func makeRefreshRequest(refreshToken: String) -> URLRequest {
-    let queryItems = [
+    let query = OAuthQuery(queryItems: [
       URLQueryItem(name: "refresh_token", value: refreshToken),
       URLQueryItem(name: "client_id", value: clientID),
       URLQueryItem(name: "grant_type", value: "refresh_token"),
-    ]
+    ])
 
-    return Helper.makePOSTRequest(url: tokenURL, query: queryItems)
+    return Helper.makePOSTRequest(url: tokenURL, query: query)
   }
 }
 
@@ -178,14 +176,14 @@ private enum Helper {
   private static let codeVerifierCharacters = stateCharacters + "-._~"
   
     
-  static func makePOSTRequest(url: URL, query: [URLQueryItem]) -> URLRequest {
+  static func makePOSTRequest(url: URL, query: OAuthQuery) -> URLRequest {
     var req = URLRequest(url: url)
     req.httpMethod = "POST"
     req.allHTTPHeaderFields = [
       "content-type": "application/x-www-form-urlencoded",
       "accept": "application/x-www-form-urlencoded,application/json",
     ]
-    req.httpBody = URLComponents.queryData(from: query)
+    req.httpBody = query.makeFormURLEncodedBody()
     return req
   }
 
@@ -196,8 +194,8 @@ private enum Helper {
       throw OAuthSession.Error.callbackMismatch
     }
 
-    let callbackComps = URLComponents(url: callback, resolvingAgainstBaseURL: false)
-    guard let _callbackState = callbackComps?.queryValue(for: "state") else {
+    let callbackQuery = try OAuthQuery(url: callback)
+    guard let _callbackState = callbackQuery.value(for: "state") else {
       throw OAuthSession.Error.noState
     }
     
@@ -205,7 +203,7 @@ private enum Helper {
       throw OAuthSession.Error.stateMismatch
     }
 
-    guard let authorizationCode = callbackComps?.queryValue(for: "code") else {
+    guard let authorizationCode = callbackQuery.value(for: "code") else {
       throw OAuthSession.Error.noCode
     }
     

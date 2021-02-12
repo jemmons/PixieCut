@@ -14,7 +14,7 @@ class CredentialsJSONTests: XCTestCase {
       "scope": "read write"
     }
     """.utf8)
-    let credentials = try! JSONDecoder().decode(Credentials.self, from: json)
+    let credentials = try! Credentials(json: json)
     XCTAssertEqual(Date().timeIntervalSince1970, credentials.created.timeIntervalSince1970, accuracy: 1.0)
     XCTAssertEqual(credentials.accessToken, "access123")
     XCTAssertEqual(credentials.refreshToken, "refresh123")
@@ -32,7 +32,7 @@ class CredentialsJSONTests: XCTestCase {
       "expires_in": 3600
     }
     """.utf8)
-    let credentials = try! JSONDecoder().decode(Credentials.self, from: json)
+    let credentials = try! Credentials(json: json)
     XCTAssertEqual(3600, credentials.expiresIn)
   }
   
@@ -45,7 +45,7 @@ class CredentialsJSONTests: XCTestCase {
       "expires_in": 3600.5
     }
     """.utf8)
-    let credentials = try! JSONDecoder().decode(Credentials.self, from: json)
+    let credentials = try! Credentials(json: json)
     XCTAssertEqual(3600.5, credentials.expiresIn)
   }
   
@@ -57,7 +57,7 @@ class CredentialsJSONTests: XCTestCase {
       "token_type": "bearer"
     }
     """.utf8)
-    let credentials = try! JSONDecoder().decode(Credentials.self, from: json)
+    let credentials = try! Credentials(json: json)
     XCTAssertEqual(Date().timeIntervalSince1970, credentials.created.timeIntervalSince1970, accuracy: 1.0)
     XCTAssertEqual(credentials.accessToken, "access123")
     XCTAssertEqual(credentials.tokenType, "bearer")
@@ -104,5 +104,21 @@ class CredentialsJSONTests: XCTestCase {
     }
     
     wait(for: [keyWasNotFound], timeout: 0)
+  }
+  
+  
+  func testBadJSON() {
+    let catchCorruptedJSON = expectation(description: "waiting for error")
+    let json = Data(capacity: 0)
+
+    do {
+      _ = try Credentials(json: json)
+    } catch Swift.DecodingError.dataCorrupted {
+      catchCorruptedJSON.fulfill()
+    } catch {
+      XCTFail()
+    }
+    
+    wait(for: [catchCorruptedJSON], timeout: 0)
   }
 }
